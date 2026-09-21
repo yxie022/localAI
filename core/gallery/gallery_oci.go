@@ -145,7 +145,11 @@ func fetchOCIGalleryIndex(ctx context.Context, g config.Gallery, candidate, base
 
 	pullRef := strings.TrimPrefix(candidate, downloader.OCIPrefix)
 
-	if g.Verification != nil {
+	policy := g.ArtifactVerification
+	if policy == nil {
+		policy = g.Verification
+	}
+	if policy != nil {
 		// Resolve first, verify the digest, then pull that same digest.
 		// Nothing has been fetched at this point beyond the manifest, so a
 		// policy failure leaves no content anywhere.
@@ -153,12 +157,12 @@ func fetchOCIGalleryIndex(ctx context.Context, g config.Gallery, candidate, base
 		if err != nil {
 			return nil, err
 		}
-		if err := verifyGalleryArtifact(ctx, g.Verification, digestRef); err != nil {
+		if err := verifyGalleryArtifact(ctx, policy, digestRef); err != nil {
 			return nil, fmt.Errorf("gallery %q failed signature verification: %w", g.Name, err)
 		}
 		pullRef = digestRef
 	} else if requireIntegrity {
-		return nil, fmt.Errorf("strict integrity: gallery %q has no verification policy for %q (set verification: in the gallery configuration or disable --require-backend-integrity)", g.Name, candidate)
+		return nil, fmt.Errorf("strict integrity: gallery %q has no verification policy for %q (set artifact_verification: in the gallery configuration or disable --require-backend-integrity)", g.Name, candidate)
 	} else {
 		xlog.Warn("fetching an OCI gallery without signature verification",
 			"gallery", g.Name, "url", candidate)
